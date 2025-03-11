@@ -1,0 +1,62 @@
+replicaCount: 3  # Total validator pods (8 nodes * 3 pods each)
+commonFlags:
+  - "--min_peers=4"
+  - "--bootnodes=/ip4/64.227.157.72/tcp/9876/p2p/QmT1RorLMMW6Zj54zQCyKjXBb3fciHY33o4UQbeMAh5JD6"
+  - "--p2p.muxer=yamux"
+  - "--network=localnet"
+  - "--blspass=file:/root/.itc/blspass.txt"
+  - "--verbosity=5"
+  - "--p2p.security.max-conn-per-ip=100"
+  - "--localnet.blocks_per_epoch=16"
+  - "--localnet.blocks_per_epoch_v2=16"
+  - "--dns=false"
+  - "--sync=true"
+  - "--dns.client=false"
+  - "--sync.downloader=true"
+  - "--sync.stagedsync=true"
+  - "--broadcast_invalid_tx=false"
+  - "--run.legacy"
+image:
+  repository: anandswarup44/intelchain-node
+  tag: latest
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: "1"       # Each pod gets at least 1 vCPU to ensure stable performance
+    memory: "2Gi"  # Minimum memory required to start the validator node
+  limits:
+    cpu: "3"       # Each pod can use up to 3 vCPUs if available
+    memory: "6Gi"
+
+storage:
+  size: 20Gi  # Storage per validator node
+
+nodeSelector: {}  # Can be updated for specific nodes
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+            - key: app
+              operator: In
+              values:
+                - validator
+        topologyKey: "kubernetes.io/hostname"  # Ensures pods are spread across nodes
+
+tolerations: []  # Add if needed for tainted nodes
+
+service:
+  type: ClusterIP
+  ports:
+    - name: p2p
+      port: 30303
+    - name: rpc
+      port: 8545
+
+config:
+  baseDir: "/data"
+  command: ["/bin/sh", "-c"]
+  args:
+    - "./intelchain --config={{ .Values.config.baseDir }}/config-$(POD_ID).toml --datadir={{ .Values.config.baseDir }}/node-$(POD_ID)"
