@@ -1,55 +1,74 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ .Release.Name }}-validator
-  labels:
-    app: validator
+  name: {{ .Release.Name }}
 spec:
+  serviceName: {{ .Release.Name }}
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: validator
-  serviceName: {{ .Release.Name }}-validator
+      app: {{ .Release.Name }}
   template:
     metadata:
       labels:
-        app: validator
+        app: {{ .Release.Name }}
     spec:
-      affinity:
-        {{- toYaml .Values.affinity | nindent 8 }}
       nodeSelector:
-        {{- toYaml .Values.nodeSelector | nindent 8 }}
-      tolerations:
-        {{- toYaml .Values.tolerations | nindent 8 }}
+        node-role.kubernetes.io/worker: "true"
       containers:
-        - name: validator
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
+        - name: validator-node
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           command: 
-            - "/bin/sh"
-            - "-c"
-            - |
-              ./intelchain {{ range .Values.commonFlags }}{{ . }} {{ end }} $(CONFIG_FLAGS)
+            - "./intelchain"
           env:
-            - name: POD_ID
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: CONFIG_FLAGS
-              valueFrom:
-                configMapKeyRef:
-                  name: validator-config
-                  key: validator-$(STATEFULSET_INDEX)  # Maps to the correct key
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
+           - name: POD_NAME
+             valueFrom:
+              fieldRef:
+                fieldPath: metadata.name
+          args:
+            - "--log_folder" 
+            - "./../tmp_log/log-$(date +%Y%m%d-%H%M%S)"
+            - "--min_peers"
+            - "4"
+            - "--bootnodes"
+            - "{{ .Values.bootnodes }}"
+            - "--p2p.muxer"
+            - "yamux"
+            - "--network"
+            - "localnet"
+            - "--blspass"
+            - "file:./../.itc/blspass.txt"
+            - "--verbosity"
+            - "5"
+            - "--p2p.security.max-conn-per-ip=100"
+            - "--localnet.blocks_per_epoch=16"
+            - "--localnet.blocks_per_epoch_v2=16"
+            - "--dns=false"
+            - "--sync=true"
+            - "--dns.client=false"
+            - "--sync.downloader=true"
+            - "--sync.stagedsync=true"
+            - "--ip"
+            - "127.0.0.1"
+            - "--port"
+            - "9000"
+            - "--key"
+            - "/tmp/127.0.0.1-9000.key"
+            - "--db_dir"
+            - "./../db-127.0.0.1-9000"
+            - "--broadcast_invalid_tx=false"
+            - "--blskey_file=/.itc/"
+            - "--run.legacy"
+          ports:
+            - containerPort: 9500
           volumeMounts:
             - name: data
-              mountPath: /data
+              mountPath: /root/go/src/github.com/intelchain-itc/intelchain/.itc
   volumeClaimTemplates:
     - metadata:
         name: data
       spec:
-        accessModes: ["ReadWriteOnce"]
+        accessModes: [ "ReadWriteOnce" ]
         resources:
           requests:
-            storage: {{ .Values.storage.size }}
+            storage: 10Gi

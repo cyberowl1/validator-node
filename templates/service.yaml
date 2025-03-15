@@ -1,15 +1,13 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Release.Name }}-validator
-  labels:
-    app: validator
+  name: {{ .Release.Name }}-rpc
 spec:
-  clusterIP: None  # Headless service for stateful pods
+  type: NodePort
   ports:
-    - name: p2p
-      port: 30303
-    - name: rpc
-      port: 8545
+    - port: 9500
+      targetPort: 9500
+      protocol: TCP
+      nodePort: {{ .Values.rpcNodePort }}
   selector:
-    app: validator
+    app: {{ .Release.Name }}

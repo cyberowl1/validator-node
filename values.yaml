@@ -1,62 +1,73 @@
-replicaCount: 3  # Total validator pods (8 nodes * 3 pods each)
-commonFlags:
-  - "--min_peers=4"
-  - "--bootnodes=/ip4/64.227.157.72/tcp/9876/p2p/QmT1RorLMMW6Zj54zQCyKjXBb3fciHY33o4UQbeMAh5JD6"
-  - "--p2p.muxer=yamux"
-  - "--network=localnet"
-  - "--blspass=file:/root/.itc/blspass.txt"
-  - "--verbosity=5"
-  - "--p2p.security.max-conn-per-ip=100"
-  - "--localnet.blocks_per_epoch=16"
-  - "--localnet.blocks_per_epoch_v2=16"
-  - "--dns=false"
-  - "--sync=true"
-  - "--dns.client=false"
-  - "--sync.downloader=true"
-  - "--sync.stagedsync=true"
-  - "--broadcast_invalid_tx=false"
-  - "--run.legacy"
+replicaCount: 24
+
 image:
   repository: anandswarup44/intelchain-node
   tag: latest
   pullPolicy: IfNotPresent
 
 resources:
-  requests:
-    cpu: "1"       # Each pod gets at least 1 vCPU to ensure stable performance
-    memory: "2Gi"  # Minimum memory required to start the validator node
   limits:
-    cpu: "3"       # Each pod can use up to 3 vCPUs if available
-    memory: "6Gi"
-
-storage:
-  size: 20Gi  # Storage per validator node
-
-nodeSelector: {}  # Can be updated for specific nodes
-
-affinity:
-  podAntiAffinity:
-    requiredDuringSchedulingIgnoredDuringExecution:
-      - labelSelector:
-          matchExpressions:
-            - key: app
-              operator: In
-              values:
-                - validator
-        topologyKey: "kubernetes.io/hostname"  # Ensures pods are spread across nodes
-
-tolerations: []  # Add if needed for tainted nodes
+    cpu: "1"
+    memory: "2Gi"
+  requests:
+    cpu: "500m"
+    memory: "1Gi"
+ingress:
+  enabled: false  # Change to true if you want to enable ingress
+  className: ""   # Optional, define if required
+  annotations: {}
+  hosts:
+    - host: example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
 
 service:
   type: ClusterIP
   ports:
-    - name: p2p
-      port: 30303
-    - name: rpc
-      port: 8545
+    rpc: 9500
+    p2p: 9000
 
-config:
-  baseDir: "/data"
-  command: ["/bin/sh", "-c"]
-  args:
-    - "./intelchain --config={{ .Values.config.baseDir }}/config-$(POD_ID).toml --datadir={{ .Values.config.baseDir }}/node-$(POD_ID)"
+dataPersistence:
+  enabled: true
+  storageClass: "standard"
+  size: 5Gi
+
+network:
+  bootnodes: "/ip4/64.227.157.72/tcp/9876/p2p/QmT1RorLMMW6Zj54zQCyKjXBb3fciHY33o4UQbeMAh5JD6"
+  p2pMuxer: "yamux"
+  maxConnPerIP: 100
+  blocksPerEpoch: 16
+  blocksPerEpochV2: 16
+  syncDownloader: true
+  stagedSync: true
+  dns: false
+  dnsClient: false
+
+logging:
+  verbosity: 5
+serviceAccount:
+  create: true
+  name: validator-node-sa
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+
+    
+containerPort: 9500
+
+nodeConfig:
+  ip: "127.0.0.1"
+  portBase: 9000  # Each node will have a different port (9000, 9001, ...)
+  dbDirBase: "./../db"
+  keyDir: "/.itc"
+  blskeys:
+  0: "f47238daef97d60deedbde5302d05dea5de67608f11f406576e363661f7dcbc4a1385948549b31a6c70f6fde8a391486.key"
+  1: "b3f59d4c7de3f60fa7d1a70c7d29a6c70f6fde8a391486.key"
+  2: "c472cda1c097d60deedbde5302d05dea8f406576e363661f7dcbc4a1385948549b31a6c70f6fde8a391486.key"
+  23: "lastkeyfile.key"
+  # Add all 24 keys in order
+
