@@ -61,13 +61,13 @@ containerPort: 9500
 
 nodeConfig:
   ip: "127.0.0.1"
-  portBase: 9000  # Each node will have a different port (9000, 9001, ...)
+  portBase: 9000
   dbDirBase: "./../db"
   keyDir: "/.itc"
   blskeys:
-  0: "f47238daef97d60deedbde5302d05dea5de67608f11f406576e363661f7dcbc4a1385948549b31a6c70f6fde8a391486.key"
-  1: "b3f59d4c7de3f60fa7d1a70c7d29a6c70f6fde8a391486.key"
-  2: "c472cda1c097d60deedbde5302d05dea8f406576e363661f7dcbc4a1385948549b31a6c70f6fde8a391486.key"
-  23: "lastkeyfile.key"
+    - "f47238daef97d60deedbde5302d05dea5de67608f11f406576e363661f7dcbc4a1385948549b31a6c70f6fde8a391486.key"
+    - "b3f59d4c7de3f60fa7d1a70c7d29a6c70f6fde8a391486.key"
+    -  "c472cda1c097d60deedbde5302d05dea8f406576e363661f7dcbc4a1385948549b31a6c70f6fde8a391486.key"
+    - "lastkeyfile.key"
   # Add all 24 keys in order
 

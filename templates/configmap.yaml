@@ -4,17 +4,7 @@ kind: ConfigMap
 metadata:
   name: validator-config
 data:
-  startup-script.sh: |
-    #!/bin/sh
-    index=$(hostname | awk -F'-' '{print $NF}')
-    blskey_file="/root/.itc/key-${index}.key"
-    ./../intelchain --log_folder ./../tmp_log/log-$(date +%Y%m%d-%H%M%S) \
-    --min_peers 4 --bootnodes {{ .Values.bootnodes }} \
-    --p2p.muxer yamux --network localnet \
-    --blspass file:/root/.itc/blspass.txt --verbosity 5 \
-    --p2p.security.max-conn-per-ip=100 --localnet.blocks_per_epoch=16 \
-    --localnet.blocks_per_epoch_v2=16 --dns=false --sync=true \
-    --dns.client=false --sync.downloader=true --sync.stagedsync=true \
-    --ip 127.0.0.1 --port 9000 --key /tmp/127.0.0.1-9000.key \
-    --db_dir ./../db-127.0.0.1-9000 --broadcast_invalid_tx=false \
-    --blskey_file ${blskey_file} --run.legacy
+  {{- range $index, $key := .Values.nodeConfig.blskeys }}
+  {{ $key }}: |
+    # Contents of the key file or instructions to populate it
+  {{- end }}

@@ -1,74 +1,96 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: {{ .Release.Name }}
+  name: {{ include "validator-node.fullname" . }}
+  labels:
+    {{- include "validator-node.labels" . | nindent 4 }}
 spec:
-  serviceName: {{ .Release.Name }}
+  serviceName: {{ include "validator-node.fullname" . }}
   replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
-      app: {{ .Release.Name }}
+      {{- include "validator-node.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
-        app: {{ .Release.Name }}
+        {{- include "validator-node.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
-      nodeSelector:
-        node-role.kubernetes.io/worker: "true"
+      serviceAccountName: {{ include "validator-node.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
-        - name: validator-node
-          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
-          command: 
-            - "./intelchain"
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/bash
+            - -c
+            -  ./intelchain --bootnodes {{ .Values.network.bootnodes }} \
+                -p2p.muxer  "{{ .Values.network.p2pMuxer }}" \
+                --dns  "{{ .Values.network.dns }}" \
+                --dns.client  {{ .Values.network.dnsClient }} \
+                --p2p.security.max-conn-per-ip {{ .Values.network.maxConnPerIP }} \
+                --blocks_per_epoch {{ .Values.network.blocksPerEpoch }} \
+                --localnet.blocks_per_epoch_v2 {{ .Values.network.blocksPerEpochV2 }} \
+                --sync_downloader {{ .Values.network.syncDownloader }} \
+                --sync.stagedsync {{ .Values.network.stagedSync }} \
+                --log_folder "/data/logs" \
+                --db_dir "./" \
+                --bls.keys "./.itc/{{ index .Values.nodeConfig.blskeys 0 }}" \
+                --bls.pass.file  "" \                                           
           env:
-           - name: POD_NAME
-             valueFrom:
-              fieldRef:
-                fieldPath: metadata.name
-          args:
-            - "--log_folder" 
-            - "./../tmp_log/log-$(date +%Y%m%d-%H%M%S)"
-            - "--min_peers"
-            - "4"
-            - "--bootnodes"
-            - "{{ .Values.bootnodes }}"
-            - "--p2p.muxer"
-            - "yamux"
-            - "--network"
-            - "localnet"
-            - "--blspass"
-            - "file:./../.itc/blspass.txt"
-            - "--verbosity"
-            - "5"
-            - "--p2p.security.max-conn-per-ip=100"
-            - "--localnet.blocks_per_epoch=16"
-            - "--localnet.blocks_per_epoch_v2=16"
-            - "--dns=false"
-            - "--sync=true"
-            - "--dns.client=false"
-            - "--sync.downloader=true"
-            - "--sync.stagedsync=true"
-            - "--ip"
-            - "127.0.0.1"
-            - "--port"
-            - "9000"
-            - "--key"
-            - "/tmp/127.0.0.1-9000.key"
-            - "--db_dir"
-            - "./../db-127.0.0.1-9000"
-            - "--broadcast_invalid_tx=false"
-            - "--blskey_file=/.itc/"
-            - "--run.legacy"
+            - name: NODE_PORT
+              value: "{{ add .Values.nodeConfig.portBase .Release.Revision }}"
+            - name: NODE_INDEX
+              value: "{{ .Release.Revision }}"
           ports:
-            - containerPort: 9500
+            - name: rpc
+              containerPort: {{ .Values.service.ports.rpc }}
+              protocol: TCP
+            - name: p2p
+              containerPort: {{ .Values.service.ports.p2p }}
+              protocol: TCP
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
             - name: data
-              mountPath: /root/go/src/github.com/intelchain-itc/intelchain/.itc
+              mountPath: /data
+            - name: keys
+              mountPath: /keys
+      volumes:
+        - name: keys
+          configMap:
+            name: {{ include "validator-node.fullname" . }}-keys
+      affinity:
+        {{- toYaml .Values.affinity | nindent 8 }}
+      tolerations:
+        {{- toYaml .Values.tolerations | nindent 8 }}
+
   volumeClaimTemplates:
     - metadata:
         name: data
       spec:
-        accessModes: [ "ReadWriteOnce" ]
+        accessModes:
+          - ReadWriteOnce
         resources:
           requests:
-            storage: 10Gi
+            storage: {{ .Values.dataPersistence.size }}
+        storageClassName: {{ .Values.dataPersistence.storageClass }}
+
