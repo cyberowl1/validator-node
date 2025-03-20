@@ -38,24 +38,16 @@ spec:
           command:
             - /bin/bash
             - -c
-            -  ./intelchain --bootnodes {{ .Values.network.bootnodes }} \
-                -p2p.muxer  "{{ .Values.network.p2pMuxer }}" \
-                --dns  "{{ .Values.network.dns }}" \
-                --dns.client  {{ .Values.network.dnsClient }} \
-                --p2p.security.max-conn-per-ip {{ .Values.network.maxConnPerIP }} \
-                --blocks_per_epoch {{ .Values.network.blocksPerEpoch }} \
-                --localnet.blocks_per_epoch_v2 {{ .Values.network.blocksPerEpochV2 }} \
-                --sync_downloader {{ .Values.network.syncDownloader }} \
-                --sync.stagedsync {{ .Values.network.stagedSync }} \
-                --log_folder "/data/logs" \
-                --db_dir "./" \
-                --bls.keys "./.itc/{{ index .Values.nodeConfig.blskeys 0 }}" \
-                --bls.pass.file  "" \                                           
+            -  ./intelchain -c /app/$POD_NAME.conf                                           
           env:
             - name: NODE_PORT
               value: "{{ add .Values.nodeConfig.portBase .Release.Revision }}"
             - name: NODE_INDEX
               value: "{{ .Release.Revision }}"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           ports:
             - name: rpc
               containerPort: {{ .Values.service.ports.rpc }}
@@ -73,16 +65,20 @@ spec:
             - name: data
               mountPath: /data
             - name: keys
-              mountPath: /keys
+              mountPath: "/root/.itc"
+            - name: conf
+              mountPath: "/app/"  
       volumes:
+        - name: conf
+          configMap:
+            name: intelchain-config
         - name: keys
           configMap:
-            name: {{ include "validator-node.fullname" . }}-keys
+            name: validator-node-keys
       affinity:
         {{- toYaml .Values.affinity | nindent 8 }}
       tolerations:
         {{- toYaml .Values.tolerations | nindent 8 }}
-
   volumeClaimTemplates:
     - metadata:
         name: data
