@@ -7,11 +7,11 @@ image:
 
 resources:
   limits:
+    cpu: "1.5"
+    memory: "3Gi"
+  requests:
     cpu: "1"
     memory: "2Gi"
-  requests:
-    cpu: "500m"
-    memory: "1Gi"
 ingress:
   enabled: false  # Change to true if you want to enable ingress
   className: ""   # Optional, define if required
