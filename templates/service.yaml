@@ -3,11 +3,10 @@ kind: Service
 metadata:
   name: {{ .Release.Name }}-rpc
 spec:
-  type: NodePort
+  type: LoadBalancer
   ports:
     - port: 9500
       targetPort: 9500
       protocol: TCP
-      nodePort: {{ .Values.rpcNodePort }}
   selector:
     app: {{ .Release.Name }}
